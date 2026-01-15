@@ -1,0 +1,7 @@
+{
+  "name": "Ethereal Weddings AI",
+  "description": "A professional AI-powered wedding photography consultant that helps couples visualize their dream photoshoot using high-fidelity image generation and editing.",
+  "requestFramePermissions": [
+    "camera"
+  ]
+}
