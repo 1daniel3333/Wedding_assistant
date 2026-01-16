@@ -17,10 +17,12 @@ const App: React.FC = () => {
     uploadedPhotos: [],
     generatedImages: [],
     isThinking: false,
-    step: 'identity'
+    step: 'identity',
+    apiKey: localStorage.getItem('gemini_api_key') || null
   });
 
   const [input, setInput] = useState('');
+  const [apiKeyInput, setApiKeyInput] = useState('');
   const chatEndRef = useRef<HTMLDivElement>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
 
@@ -63,10 +65,11 @@ const App: React.FC = () => {
     if (promptMatch) {
       const visualPrompt = promptMatch[1].trim();
       const sceneSummary = summaryMatch ? summaryMatch[1].trim() : "Generating your visualization...";
-      
+
       setState(prev => ({ ...prev, isThinking: true }));
       try {
-        const imageUrl = await generateWeddingImage(visualPrompt, state.uploadedPhotos);
+        if (!state.apiKey) throw new Error("API Key missing");
+        const imageUrl = await generateWeddingImage(state.apiKey, visualPrompt, state.uploadedPhotos);
         if (imageUrl) {
           setState(prev => ({
             ...prev,
@@ -96,9 +99,10 @@ const App: React.FC = () => {
     setInput('');
 
     try {
-      const responseText = await chatWithAssistant(updatedMessages, images);
+      if (!state.apiKey) throw new Error("API Key missing");
+      const responseText = await chatWithAssistant(state.apiKey, updatedMessages, images);
       const assistantMessage: Message = { role: 'assistant', content: responseText };
-      
+
       setState(prev => ({
         ...prev,
         messages: [...prev.messages, assistantMessage],
@@ -121,11 +125,12 @@ const App: React.FC = () => {
 
   const handleImageEdit = async (editPrompt: string) => {
     if (state.generatedImages.length === 0) return;
-    
+
     setState(prev => ({ ...prev, isThinking: true }));
     try {
       const lastImage = state.generatedImages[0];
-      const editedImageUrl = await editWeddingImage(lastImage, editPrompt);
+      if (!state.apiKey) throw new Error("API Key missing");
+      const editedImageUrl = await editWeddingImage(state.apiKey, lastImage, editPrompt);
       if (editedImageUrl) {
         setState(prev => ({
           ...prev,
@@ -139,9 +144,56 @@ const App: React.FC = () => {
     }
   };
 
+  const handleSaveApiKey = () => {
+    if (apiKeyInput.trim()) {
+      localStorage.setItem('gemini_api_key', apiKeyInput.trim());
+      setState(prev => ({ ...prev, apiKey: apiKeyInput.trim() }));
+    }
+  };
+
   return (
-    <div className="flex flex-col h-screen max-w-6xl mx-auto bg-white shadow-2xl overflow-hidden">
+    <div className="flex flex-col h-screen max-w-6xl mx-auto bg-white shadow-2xl overflow-hidden relative">
       <Navbar />
+
+      {/* API Key Modal */}
+      {!state.apiKey && (
+        <div className="absolute inset-0 z-50 bg-black/50 flex items-center justify-center p-4">
+          <div className="bg-white rounded-2xl shadow-xl p-8 max-w-md w-full space-y-6">
+            <div className="text-center">
+              <div className="bg-rose-100 w-16 h-16 rounded-full flex items-center justify-center mx-auto mb-4">
+                <i className="fa-solid fa-key text-rose-500 text-2xl"></i>
+              </div>
+              <h2 className="text-2xl font-serif text-stone-800">Enter Your API Key</h2>
+              <p className="text-stone-500 mt-2">
+                ToString start, please enter your Gemini API Key. This ensures you use your own quota for the session.
+              </p>
+            </div>
+
+            <div className="space-y-4">
+              <div>
+                <label className="block text-sm font-medium text-stone-700 mb-1">Gemini API Key</label>
+                <input
+                  type="password"
+                  value={apiKeyInput}
+                  onChange={(e) => setApiKeyInput(e.target.value)}
+                  placeholder="AIzaSy..."
+                  className="w-full px-4 py-3 bg-stone-50 border border-stone-200 rounded-xl focus:ring-2 focus:ring-rose-500 focus:outline-none"
+                />
+              </div>
+              <button
+                onClick={handleSaveApiKey}
+                disabled={!apiKeyInput.trim()}
+                className="w-full py-3 bg-rose-500 text-white rounded-xl font-medium hover:bg-rose-600 disabled:bg-stone-300 disabled:cursor-not-allowed transition-colors"
+              >
+                Start Helper
+              </button>
+              <p className="text-xs text-center text-stone-400">
+                Your key is stored locally in your browser and never sent to our servers.
+              </p>
+            </div>
+          </div>
+        </div>
+      )}
 
       <main className="flex-1 flex flex-col md:flex-row overflow-hidden">
         {/* Left Side: Chat Interface */}
@@ -160,27 +212,27 @@ const App: React.FC = () => {
 
           <div className="p-4 bg-white border-t border-stone-100">
             <div className="flex items-center gap-2 mb-2">
-               {state.uploadedPhotos.length > 0 && (
-                 <div className="flex gap-1 overflow-x-auto pb-2">
-                    {state.uploadedPhotos.map((img, i) => (
-                      <img key={i} src={img} className="h-10 w-10 object-cover rounded-md border border-stone-200" alt="Reference" />
-                    ))}
-                 </div>
-               )}
+              {state.uploadedPhotos.length > 0 && (
+                <div className="flex gap-1 overflow-x-auto pb-2">
+                  {state.uploadedPhotos.map((img, i) => (
+                    <img key={i} src={img} className="h-10 w-10 object-cover rounded-md border border-stone-200" alt="Reference" />
+                  ))}
+                </div>
+              )}
             </div>
             <div className="relative flex items-center">
-              <button 
+              <button
                 onClick={() => fileInputRef.current?.click()}
                 className="absolute left-3 text-stone-400 hover:text-rose-500 transition-colors"
                 title="Upload photos of the couple"
               >
                 <i className="fa-solid fa-camera text-xl"></i>
               </button>
-              <input 
-                type="file" 
-                ref={fileInputRef} 
-                className="hidden" 
-                multiple 
+              <input
+                type="file"
+                ref={fileInputRef}
+                className="hidden"
+                multiple
                 accept="image/*"
                 onChange={handleFileUpload}
               />

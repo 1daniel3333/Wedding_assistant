@@ -11,6 +11,7 @@ export interface AppState {
   generatedImages: string[];
   isThinking: boolean;
   step: 'identity' | 'gathering' | 'preview';
+  apiKey: string | null;
 }
 
 export enum WeddingPillar {

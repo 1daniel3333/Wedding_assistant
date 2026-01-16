@@ -5,10 +5,10 @@ import { Message } from "../types";
 
 // DO: Removed global ai variable to follow the guideline: "Create a new GoogleGenAI instance right before making an API call".
 
-export async function chatWithAssistant(messages: Message[], images?: string[]): Promise<string> {
+export async function chatWithAssistant(apiKey: string, messages: Message[], images?: string[]): Promise<string> {
   // DO: Initialize with process.env.API_KEY inside the function
-  const ai = new GoogleGenAI({ apiKey: process.env.API_KEY });
-  
+  const ai = new GoogleGenAI({ apiKey });
+
   const contents: any[] = messages.map(m => ({
     role: m.role === 'user' ? 'user' : 'model',
     parts: [{ text: m.content }]
@@ -40,9 +40,9 @@ export async function chatWithAssistant(messages: Message[], images?: string[]):
   return response.text || "I'm sorry, I couldn't process that.";
 }
 
-export async function generateWeddingImage(prompt: string, referenceImages?: string[]): Promise<string | null> {
+export async function generateWeddingImage(apiKey: string, prompt: string, referenceImages?: string[]): Promise<string | null> {
   // DO: Initialize with process.env.API_KEY inside the function
-  const ai = new GoogleGenAI({ apiKey: process.env.API_KEY });
+  const ai = new GoogleGenAI({ apiKey });
   const parts: Part[] = [{ text: prompt }];
 
   if (referenceImages && referenceImages.length > 0) {
@@ -78,33 +78,33 @@ export async function generateWeddingImage(prompt: string, referenceImages?: str
   return null;
 }
 
-export async function editWeddingImage(baseImage: string, editPrompt: string): Promise<string | null> {
-    // DO: Initialize with process.env.API_KEY inside the function
-    const ai = new GoogleGenAI({ apiKey: process.env.API_KEY });
-    const response = await ai.models.generateContent({
-      model: MODEL_IMAGE,
-      contents: {
-        parts: [
-          {
-            inlineData: {
-              data: baseImage.split(',')[1],
-              mimeType: 'image/png',
-            },
+export async function editWeddingImage(apiKey: string, baseImage: string, editPrompt: string): Promise<string | null> {
+  // DO: Initialize with process.env.API_KEY inside the function
+  const ai = new GoogleGenAI({ apiKey });
+  const response = await ai.models.generateContent({
+    model: MODEL_IMAGE,
+    contents: {
+      parts: [
+        {
+          inlineData: {
+            data: baseImage.split(',')[1],
+            mimeType: 'image/png',
           },
-          {
-            text: editPrompt,
-          },
-        ],
-      },
-    });
+        },
+        {
+          text: editPrompt,
+        },
+      ],
+    },
+  });
 
-    // DO: Iterate through parts to find the image part
-    if (response.candidates && response.candidates[0].content.parts) {
-      for (const part of response.candidates[0].content.parts) {
-        if (part.inlineData) {
-          return `data:image/png;base64,${part.inlineData.data}`;
-        }
+  // DO: Iterate through parts to find the image part
+  if (response.candidates && response.candidates[0].content.parts) {
+    for (const part of response.candidates[0].content.parts) {
+      if (part.inlineData) {
+        return `data:image/png;base64,${part.inlineData.data}`;
       }
     }
-    return null;
+  }
+  return null;
 }
